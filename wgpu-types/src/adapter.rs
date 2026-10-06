@@ -54,6 +54,15 @@ pub struct RequestAdapterOptions<S> {
     ///
     #[doc = link_to_wgc_docs!(["limit bucketing"]: "limits/index.html#Limit-bucketing")]
     pub apply_limit_buckets: bool,
+    /// Requests an adapter that can be used with a WebXR session.
+    ///
+    /// Forwarded to `GPURequestAdapterOptions.xrCompatible` by the browser backend, and ignored everywhere
+    /// else: a WebXR/WebGPU session refuses a device whose adapter was not requested this way, and there is no
+    /// equivalent of WebGL's `makeXRCompatible()` to fix it afterwards.
+    ///
+    /// Added by this fork, and this fork's to carry: when upstream grows a field of its own for it, this one
+    /// has nothing left to do.
+    pub xr_compatible: bool,
 }
 
 impl<S> Default for RequestAdapterOptions<S> {
@@ -63,6 +72,7 @@ impl<S> Default for RequestAdapterOptions<S> {
             force_fallback_adapter: false,
             compatible_surface: None,
             apply_limit_buckets: false,
+            xr_compatible: false,
         }
     }
 }

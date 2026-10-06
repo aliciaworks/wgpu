@@ -867,6 +867,9 @@ impl dispatch::InstanceInterface for ContextWgpuCore {
                     .compatible_surface
                     .map(|surface| surface.inner.as_core().id),
                 apply_limit_buckets: false,
+// A note for the browser backend and nothing else: there is no native WebXR adapter to ask for, so
+// the flag is carried and never acted on here.
+xr_compatible: false,
             },
             wgt::Backends::all(),
             None,

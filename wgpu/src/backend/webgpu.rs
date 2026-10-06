@@ -1692,6 +1692,11 @@ impl dispatch::InstanceInterface for ContextWebGpu {
         if let Some(mapped_pref) = mapped_power_preference {
             mapped_options.set_power_preference(mapped_pref);
         }
+        // WebXR's own request, and the reason `RequestAdapterOptions::xr_compatible` exists: the browser
+        // keeps a flag on the adapter, `XRGPUBinding` checks it, and there is no way to ask for it later.
+        if options.xr_compatible {
+            mapped_options.set_xr_compatible(true);
+        }
 
         if let Some(gpu) = &self.gpu {
             let adapter_promise = gpu.request_adapter_with_options(&mapped_options);
