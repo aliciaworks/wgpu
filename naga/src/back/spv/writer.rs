@@ -484,6 +484,9 @@ impl Writer {
             crate::TypeInner::CooperativeMatrix { .. } => {
                 LocalType::Cooperative(CooperativeType::from_inner(inner).unwrap())
             }
+            // Not a `LocalType`: the cooperative-vector type has no cached local form here, so every use of it
+            // goes through the handle path and is emitted once by `write_type_declaration`.
+            crate::TypeInner::CooperativeVector { .. } => return None,
             crate::TypeInner::Pointer { base, space } => {
                 let base_type_id = self.get_handle_type_id(base);
                 LocalType::Pointer {
@@ -2222,6 +2225,16 @@ impl Writer {
 
             let id = self.id_gen.next();
             let instruction = match ty.inner {
+                crate::TypeInner::CooperativeVector { components, scalar } => {
+                    let component_type_id =
+                        self.get_numeric_type_id(NumericType::Scalar(scalar));
+                    let component_count_id = self.get_index_constant(components);
+                    Instruction::type_cooperative_vector(
+                        id,
+                        component_type_id,
+                        component_count_id,
+                    )
+                }
                 crate::TypeInner::Array { base, size, stride } => {
                     self.decorate(id, Decoration::ArrayStride, &[stride]);
 

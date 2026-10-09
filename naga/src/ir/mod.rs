@@ -850,6 +850,20 @@ pub enum TypeInner {
         scalar: Scalar,
         role: CooperativeRole,
     },
+    /// Vector that is cooperatively processed by all the threads in an opaque mapping.
+    ///
+    /// SPIR-V's `OpTypeCooperativeVectorNV`: a fixed number of components of one scalar, held in inference
+    /// hardware rather than in registers, and the shape a cooperative matrix multiply consumes. It is what
+    /// `VK_NV_cooperative_vector` adds over `cooperative_matrix`, and what NTC's on-sample texture decoding
+    /// runs on: the latent is a vector, the weights are a matrix, and the multiply is the network.
+    ///
+    /// The component count is arbitrary - the registry caps it at `maxCooperativeVectorComponents`, which is
+    /// 1024 on the machine this was written against - which is why it is a `u32` and not [`CooperativeSize`],
+    /// whose two values are the matrix shapes and nothing else.
+    CooperativeVector {
+        components: u32,
+        scalar: Scalar,
+    },
     /// Atomic scalar.
     Atomic(Scalar),
     /// Pointer to another type.

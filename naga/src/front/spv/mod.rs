@@ -54,6 +54,9 @@ use function::*;
 pub const SUPPORTED_CAPABILITIES: &[spirv::Capability] = &[
     spirv::Capability::Shader,
     spirv::Capability::VulkanMemoryModel,
+    // Both arrive with NTC's inference shader, which is what VK_NV_cooperative_vector's on-sample path runs.
+    spirv::Capability::CooperativeVectorNV,
+    spirv::Capability::ReplicatedCompositesEXT,
     spirv::Capability::ClipDistance,
     spirv::Capability::CullDistance,
     spirv::Capability::SampleRateShading,
@@ -1761,6 +1764,10 @@ impl<I: Iterator<Item = u32>> Frontend<I> {
                 Op::TypeInt => self.parse_type_int(inst, &mut module),
                 Op::TypeFloat => self.parse_type_float(inst, &mut module),
                 Op::TypeVector => self.parse_type_vector(inst, &mut module),
+                // `OpTypeCooperativeVectorNV` and `OpTypeVectorIdEXT` are the same opcode - the extension that
+                // declares a vector of unspecified size reuses the number, and the `spirv` crate names both
+                // with one variant - so one arm covers them.
+                Op::TypeVectorIdEXT => self.parse_type_cooperative_vector(inst, &mut module),
                 Op::TypeMatrix => self.parse_type_matrix(inst, &mut module),
                 Op::TypeFunction => self.parse_type_function(inst),
                 Op::TypePointer => self.parse_type_pointer(inst, &mut module),
@@ -1872,17 +1879,6 @@ impl<I: Iterator<Item = u32>> Frontend<I> {
         self.switch(ModuleState::Capability, inst.op)?;
         inst.expect(2)?;
         let capability = self.next()?;
-        // Two capabilities the `spirv` crate this repository pins cannot name, so they arrive as numbers
-        // rather than as variants to match on. The numbers are from the SPIR-V registry, not from a guess:
-        // `CooperativeVectorNV` is 5394 and `ReplicatedCompositesEXT` is 6024. Accepting them is the first step
-        // of reading the shader NTC's inference runs and the one the failure names; what that shader *does*
-        // with them - the cooperative-vector type and the matrix multiply over it - is the rest of the layer.
-        const COOPERATIVE_VECTOR_NV: u32 = 5394;
-        const REPLICATED_COMPOSITES_EXT: u32 = 6024;
-        if capability == COOPERATIVE_VECTOR_NV || capability == REPLICATED_COMPOSITES_EXT {
-            log::warn!("capability {capability} accepted by number: the spirv crate has no name for it");
-            return Ok(());
-        }
         let cap =
             spirv::Capability::from_u32(capability).ok_or(Error::UnknownCapability(capability))?;
         if !SUPPORTED_CAPABILITIES.contains(&cap) {
@@ -2248,6 +2244,46 @@ impl<I: Iterator<Item = u32>> Frontend<I> {
             size: map_vector_size(component_count)?,
             scalar,
         };
+        self.lookup_type.insert(
+            id,
+            LookupType {
+                handle: module.types.insert(
+                    crate::Type {
+                        name: self.future_decor.remove(&id).and_then(|dec| dec.name),
+                        inner,
+                    },
+                    self.span_from_with_op(start),
+                ),
+                base_id: Some(type_id),
+            },
+        );
+        Ok(())
+    }
+
+    /// `OpTypeCooperativeVectorNV <id> <component type> <component count>`.
+    ///
+    /// The count is not a `VectorSize`: the registry allows any count up to the device's
+    /// `maxCooperativeVectorComponents`, which is 1024 on the machine this was written against, so it is read
+    /// as the plain number the instruction carries.
+    fn parse_type_cooperative_vector(
+        &mut self,
+        inst: Instruction,
+        module: &mut crate::Module,
+    ) -> Result<(), Error> {
+        let start = self.data_offset;
+        self.switch(ModuleState::Type, inst.op)?;
+        inst.expect(4)?;
+        let id = self.next()?;
+        let type_id = self.next()?;
+        let type_lookup = self.lookup_type.lookup(type_id)?;
+        let scalar = match module.types[type_lookup.handle].inner {
+            crate::TypeInner::Scalar(scalar) => scalar,
+            _ => return Err(Error::InvalidInnerType(type_id)),
+        };
+        // The component count is a plain number rather than a `VectorSize`: the registry allows any count up to
+        // the device's `maxCooperativeVectorComponents`.
+        let components = self.next()?;
+        let inner = crate::TypeInner::CooperativeVector { components, scalar };
         self.lookup_type.insert(
             id,
             LookupType {

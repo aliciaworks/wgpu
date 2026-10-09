@@ -317,6 +317,16 @@ where
             ctx.write_scalar(scalar, out)?;
             out.write_str(">")?;
         }
+        TypeInner::CooperativeVector { components, scalar } => {
+            // No WGSL spelling exists upstream for this one; `coop_vec` follows the writer's own `coop_mat`
+            // rather than inventing a second convention for the same extension family.
+            write!(
+                out,
+                "coop_vec{}<{}>",
+                components,
+                scalar.try_to_wgsl().unwrap_or_default(),
+            )?;
+        }
         TypeInner::CooperativeMatrix {
             columns,
             rows,

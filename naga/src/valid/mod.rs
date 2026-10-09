@@ -533,6 +533,7 @@ impl crate::TypeInner {
             | Self::Vector { .. }
             | Self::Matrix { .. }
             | Self::CooperativeMatrix { .. }
+            | Self::CooperativeVector { .. }
             | Self::Array {
                 size: crate::ArraySize::Constant(_),
                 ..

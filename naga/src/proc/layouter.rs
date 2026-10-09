@@ -219,6 +219,13 @@ impl Layouter {
                         alignment: Alignment::from(rows) * alignment,
                     }
                 }
+                Ti::CooperativeVector { scalar, .. } => {
+                    // Scalar-aligned: a cooperative vector lives in the inference hardware's register file,
+                    // not in host-visible memory, so there is no packing question here.
+                    let alignment = Alignment::new(scalar.width as u32)
+                        .ok_or(LayoutErrorInner::NonPowerOfTwoWidth.with(ty_handle))?;
+                    TypeLayout { size, alignment }
+                }
                 Ti::CooperativeMatrix {
                     columns: _,
                     rows,
