@@ -98,7 +98,12 @@ pub const SUPPORTED_EXTENSIONS: &[&str] = &[
     "SPV_KHR_16bit_storage",
     "SPV_KHR_non_semantic_info",
     "SPV_KHR_fragment_shader_barycentric",
-];
+    // SPV_NV_cooperative_vector arrives with NTC's inference shader; the crate has no name for its capability, so both
+    // are handled by number where they are parsed.
+    "SPV_NV_cooperative_vector",
+    // SPV_EXT_replicated_composites arrives with NTC's inference shader; the crate has no name for its capability, so both
+    // are handled by number where they are parsed.
+    "SPV_EXT_replicated_composites",];
 
 #[derive(Copy, Clone, Debug)]
 pub struct Instruction {
@@ -1867,6 +1872,17 @@ impl<I: Iterator<Item = u32>> Frontend<I> {
         self.switch(ModuleState::Capability, inst.op)?;
         inst.expect(2)?;
         let capability = self.next()?;
+        // Two capabilities the `spirv` crate this repository pins cannot name, so they arrive as numbers
+        // rather than as variants to match on. The numbers are from the SPIR-V registry, not from a guess:
+        // `CooperativeVectorNV` is 5394 and `ReplicatedCompositesEXT` is 6024. Accepting them is the first step
+        // of reading the shader NTC's inference runs and the one the failure names; what that shader *does*
+        // with them - the cooperative-vector type and the matrix multiply over it - is the rest of the layer.
+        const COOPERATIVE_VECTOR_NV: u32 = 5394;
+        const REPLICATED_COMPOSITES_EXT: u32 = 6024;
+        if capability == COOPERATIVE_VECTOR_NV || capability == REPLICATED_COMPOSITES_EXT {
+            log::warn!("capability {capability} accepted by number: the spirv crate has no name for it");
+            return Ok(());
+        }
         let cap =
             spirv::Capability::from_u32(capability).ok_or(Error::UnknownCapability(capability))?;
         if !SUPPORTED_CAPABILITIES.contains(&cap) {
