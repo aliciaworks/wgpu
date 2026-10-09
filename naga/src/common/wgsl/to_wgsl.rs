@@ -247,8 +247,6 @@ impl ToWgsl for crate::StorageFormat {
         use crate::StorageFormat as Sf;
 
         match self {
-            // No WGSL spelling: this is a diagnostic string for a format that is deliberately unnamed.
-            Sf::Unknown => "unknown",
             Sf::R8Unorm => "r8unorm",
             Sf::R8Snorm => "r8snorm",
             Sf::R8Uint => "r8uint",

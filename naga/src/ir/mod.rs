@@ -720,13 +720,6 @@ bitflags::bitflags! {
 #[cfg_attr(feature = "arbitrary", derive(Arbitrary))]
 pub enum StorageFormat {
     // 8-bit formats
-    /// No format: the shader names it where it reads or writes, which Vulkan allows for a storage image
-    /// under `StorageImageReadWithoutFormat` and `StorageImageWriteWithoutFormat`.
-    ///
-    /// This is what an unformatted storage image is called, and it is what NTC's inference shader uses for its
-    /// latent: a buffer of bytes that one shader pass reads and another writes, with the interpretation living
-    /// in the shader rather than in the binding. naga refused these outright before this.
-    Unknown,
     R8Unorm,
     R8Snorm,
     R8Uint,
@@ -856,20 +849,6 @@ pub enum TypeInner {
         rows: CooperativeSize,
         scalar: Scalar,
         role: CooperativeRole,
-    },
-    /// Vector that is cooperatively processed by all the threads in an opaque mapping.
-    ///
-    /// SPIR-V's `OpTypeCooperativeVectorNV`: a fixed number of components of one scalar, held in inference
-    /// hardware rather than in registers, and the shape a cooperative matrix multiply consumes. It is what
-    /// `VK_NV_cooperative_vector` adds over `cooperative_matrix`, and what NTC's on-sample texture decoding
-    /// runs on: the latent is a vector, the weights are a matrix, and the multiply is the network.
-    ///
-    /// The component count is arbitrary - the registry caps it at `maxCooperativeVectorComponents`, which is
-    /// 1024 on the machine this was written against - which is why it is a `u32` and not [`CooperativeSize`],
-    /// whose two values are the matrix shapes and nothing else.
-    CooperativeVector {
-        components: u32,
-        scalar: Scalar,
     },
     /// Atomic scalar.
     Atomic(Scalar),

@@ -449,28 +449,6 @@ impl super::Validator {
                 type_info.immediates_compatibility = immediates_compatibility;
                 type_info
             }
-            Ti::CooperativeVector { components, scalar } => {
-                self.require_type_capability(Capabilities::COOPERATIVE_MATRIX)?;
-                // f16 and f32, as for the matrix form. How wide a vector is allowed is
-                // `maxCooperativeVectorComponents`, a property of the device rather than of the shader, so it
-                // is not checked here.
-                if scalar.kind != crate::ScalarKind::Float
-                    || (scalar.width != 2 && scalar.width != 4)
-                    || components == 0
-                {
-                    return Err(TypeError::MatrixElementNotFloat);
-                }
-                TypeInfo::new(
-                    TypeFlags::DATA
-                        | TypeFlags::SIZED
-                        | TypeFlags::COPY
-                        | TypeFlags::HOST_SHAREABLE
-                        | TypeFlags::ARGUMENT
-                        | TypeFlags::CONSTRUCTIBLE
-                        | TypeFlags::CREATION_RESOLVED,
-                    Alignment::from_width(scalar.width),
-                )
-            }
             Ti::CooperativeMatrix {
                 columns: _,
                 rows: _,

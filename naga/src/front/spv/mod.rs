@@ -54,9 +54,6 @@ use function::*;
 pub const SUPPORTED_CAPABILITIES: &[spirv::Capability] = &[
     spirv::Capability::Shader,
     spirv::Capability::VulkanMemoryModel,
-    // Both arrive with NTC's inference shader, which is what VK_NV_cooperative_vector's on-sample path runs.
-    spirv::Capability::CooperativeVectorNV,
-    spirv::Capability::ReplicatedCompositesEXT,
     spirv::Capability::ClipDistance,
     spirv::Capability::CullDistance,
     spirv::Capability::SampleRateShading,
@@ -101,12 +98,7 @@ pub const SUPPORTED_EXTENSIONS: &[&str] = &[
     "SPV_KHR_16bit_storage",
     "SPV_KHR_non_semantic_info",
     "SPV_KHR_fragment_shader_barycentric",
-    // SPV_NV_cooperative_vector arrives with NTC's inference shader; the crate has no name for its capability, so both
-    // are handled by number where they are parsed.
-    "SPV_NV_cooperative_vector",
-    // SPV_EXT_replicated_composites arrives with NTC's inference shader; the crate has no name for its capability, so both
-    // are handled by number where they are parsed.
-    "SPV_EXT_replicated_composites",];
+];
 
 #[derive(Copy, Clone, Debug)]
 pub struct Instruction {
@@ -1764,10 +1756,6 @@ impl<I: Iterator<Item = u32>> Frontend<I> {
                 Op::TypeInt => self.parse_type_int(inst, &mut module),
                 Op::TypeFloat => self.parse_type_float(inst, &mut module),
                 Op::TypeVector => self.parse_type_vector(inst, &mut module),
-                // `OpTypeCooperativeVectorNV` and `OpTypeVectorIdEXT` are the same opcode - the extension that
-                // declares a vector of unspecified size reuses the number, and the `spirv` crate names both
-                // with one variant - so one arm covers them.
-                Op::TypeVectorIdEXT => self.parse_type_cooperative_vector(inst, &mut module),
                 Op::TypeMatrix => self.parse_type_matrix(inst, &mut module),
                 Op::TypeFunction => self.parse_type_function(inst),
                 Op::TypePointer => self.parse_type_pointer(inst, &mut module),
@@ -2260,46 +2248,6 @@ impl<I: Iterator<Item = u32>> Frontend<I> {
         Ok(())
     }
 
-    /// `OpTypeCooperativeVectorNV <id> <component type> <component count>`.
-    ///
-    /// The count is not a `VectorSize`: the registry allows any count up to the device's
-    /// `maxCooperativeVectorComponents`, which is 1024 on the machine this was written against, so it is read
-    /// as the plain number the instruction carries.
-    fn parse_type_cooperative_vector(
-        &mut self,
-        inst: Instruction,
-        module: &mut crate::Module,
-    ) -> Result<(), Error> {
-        let start = self.data_offset;
-        self.switch(ModuleState::Type, inst.op)?;
-        inst.expect(4)?;
-        let id = self.next()?;
-        let type_id = self.next()?;
-        let type_lookup = self.lookup_type.lookup(type_id)?;
-        let scalar = match module.types[type_lookup.handle].inner {
-            crate::TypeInner::Scalar(scalar) => scalar,
-            _ => return Err(Error::InvalidInnerType(type_id)),
-        };
-        // The component count is a plain number rather than a `VectorSize`: the registry allows any count up to
-        // the device's `maxCooperativeVectorComponents`.
-        let components = self.next()?;
-        let inner = crate::TypeInner::CooperativeVector { components, scalar };
-        self.lookup_type.insert(
-            id,
-            LookupType {
-                handle: module.types.insert(
-                    crate::Type {
-                        name: self.future_decor.remove(&id).and_then(|dec| dec.name),
-                        inner,
-                    },
-                    self.span_from_with_op(start),
-                ),
-                base_id: Some(type_id),
-            },
-        );
-        Ok(())
-    }
-
     fn parse_type_matrix(
         &mut self,
         inst: Instruction,
@@ -2719,14 +2667,11 @@ impl<I: Iterator<Item = u32>> Frontend<I> {
 
                 crate::ImageClass::Depth { multi: is_msaa }
             }
-            // An unformatted storage texture: the shader names the format where it reads or writes, which
-            // Vulkan allows under `StorageImageReadWithoutFormat` and `StorageImageWriteWithoutFormat`. The
-            // type says so by carrying no format.
+            // If we have an unknown format and storage texture, this is
+            // StorageRead/WriteWithoutFormat. We don't currently support
+            // this.
             else if is_sampled == 2 && format == 0 {
-                crate::ImageClass::Storage {
-                    format: crate::StorageFormat::Unknown,
-                    access: crate::StorageAccess::default(),
-                }
+                return Err(Error::InvalidStorageImageWithoutFormat);
             }
             // If we have explicit class information (is_sampled = 2 = Storage), use it.
             //

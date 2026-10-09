@@ -245,9 +245,6 @@ impl crate::TypeInner {
                 scalar,
                 role: _,
             } => Some(columns as u32 * rows as u32 * scalar.width as u32),
-            Self::CooperativeVector { components, scalar } => {
-                Some(components * scalar.width as u32)
-            }
             Self::Pointer { .. } | Self::ValuePointer { .. } => Some(POINTER_SPAN),
             Self::Array {
                 base: _,
@@ -421,8 +418,7 @@ impl crate::TypeInner {
             Ti::Struct { ref members, .. } => members
                 .iter()
                 .all(|member| types[member.ty].inner.is_constructible(types)),
-            Ti::CooperativeVector { .. }
-            | Ti::Atomic(_)
+            Ti::Atomic(_)
             | Ti::Pointer { .. }
             | Ti::ValuePointer { .. }
             | Ti::Image { .. }
@@ -476,7 +472,6 @@ impl crate::TypeInner {
             crate::TypeInner::Vector { size, scalar } => Some((Some(size), scalar)),
             crate::TypeInner::Matrix { .. }
             | crate::TypeInner::CooperativeMatrix { .. }
-            | crate::TypeInner::CooperativeVector { .. }
             | crate::TypeInner::Atomic(_)
             | crate::TypeInner::Pointer { .. }
             | crate::TypeInner::ValuePointer { .. }
@@ -502,7 +497,6 @@ impl crate::TypeInner {
             | crate::TypeInner::Atomic(scalar) => scalar.is_abstract(),
             crate::TypeInner::Array { base, .. } => types[base].inner.is_abstract(types),
             crate::TypeInner::CooperativeMatrix { .. }
-            | crate::TypeInner::CooperativeVector { .. }
             | crate::TypeInner::ValuePointer { .. }
             | crate::TypeInner::Pointer { .. }
             | crate::TypeInner::Struct { .. }

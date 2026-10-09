@@ -376,7 +376,7 @@ impl crate::TypeInner {
             Ti::Scalar(scalar) | Ti::Vector { scalar, .. } | Ti::Matrix { scalar, .. } => {
                 Some(scalar)
             }
-            Ti::CooperativeMatrix { .. } | Ti::CooperativeVector { .. } => None,
+            Ti::CooperativeMatrix { .. } => None,
             Ti::Array { base, .. } => types[base].inner.automatically_convertible_scalar(types),
             Ti::Atomic(_)
             | Ti::Pointer { .. }
@@ -402,7 +402,7 @@ impl crate::TypeInner {
             Ti::Scalar(scalar) | Ti::Vector { scalar, .. } | Ti::Matrix { scalar, .. } => {
                 Some(scalar)
             }
-            Ti::CooperativeMatrix { .. } | Ti::CooperativeVector { .. } => None,
+            Ti::CooperativeMatrix { .. } => None,
             Ti::Atomic(_) => None,
             Ti::Pointer { base, .. } | Ti::Array { base, .. } => {
                 types[base].inner.automatically_convertible_scalar(types)

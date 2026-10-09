@@ -309,20 +309,6 @@ impl super::Instruction {
         instruction
     }
 
-    /// `OpTypeCooperativeVectorNV`, which shares its opcode with `OpTypeVectorIdEXT` - the extension that
-    /// declares a vector of unspecified size reuses the number, and the `spirv` crate names both.
-    pub(super) fn type_cooperative_vector(
-        id: Word,
-        component_type_id: Word,
-        component_count_id: Word,
-    ) -> Self {
-        let mut instruction = Self::new(Op::TypeCooperativeVectorNV);
-        instruction.set_result(id);
-        instruction.add_operand(component_type_id);
-        instruction.add_operand(component_count_id);
-        instruction
-    }
-
     pub(super) fn type_image(
         id: Word,
         sampled_type_id: Word,
@@ -1356,9 +1342,6 @@ impl From<crate::StorageFormat> for spirv::ImageFormat {
     fn from(format: crate::StorageFormat) -> Self {
         use crate::StorageFormat as Sf;
         match format {
-            // What the shader itself names where it reads or writes: Vulkan's
-            // `StorageImageReadWithoutFormat` / `WriteWithoutFormat` path.
-            Sf::Unknown => Self::Unknown,
             Sf::R8Unorm => Self::R8,
             Sf::R8Snorm => Self::R8Snorm,
             Sf::R8Uint => Self::R8ui,

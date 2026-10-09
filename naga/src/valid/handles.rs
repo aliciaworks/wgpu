@@ -396,7 +396,6 @@ impl super::Validator {
             | crate::TypeInner::Vector { .. }
             | crate::TypeInner::Matrix { .. }
             | crate::TypeInner::CooperativeMatrix { .. }
-            | crate::TypeInner::CooperativeVector { .. }
             | crate::TypeInner::ValuePointer { .. }
             | crate::TypeInner::Atomic { .. }
             | crate::TypeInner::Image { .. }
