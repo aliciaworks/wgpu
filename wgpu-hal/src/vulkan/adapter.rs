@@ -6,6 +6,7 @@ use parking_lot::Mutex;
 
 use crate::{vulkan::semaphore_list::SemaphoreList, AllocationSizes};
 
+use super::cooperative_vector;
 use super::semaphore_list::SemaphoreListMode;
 
 fn depth_stencil_required_flags() -> vk::FormatFeatureFlags {
@@ -142,6 +143,13 @@ pub struct PhysicalDeviceFeatures {
     /// Features provided by `VK_KHR_cooperative_matrix`
     cooperative_matrix: Option<vk::PhysicalDeviceCooperativeMatrixFeaturesKHR<'static>>,
 
+    /// Features provided by `VK_NV_cooperative_vector`.
+    ///
+    /// Hand-bound, because ash has no bindings for the extension at all - see `cooperative_vector.rs`. a
+    /// consequence is that it cannot go through `push_next` with the rest: its `p_next` is linked by hand
+    /// below.
+    cooperative_vector: Option<cooperative_vector::CooperativeVectorFeaturesNV>,
+
     /// Features provided by `VK_KHR_vulkan_memory_model`, promoted to Vulkan 1.2
     vulkan_memory_model: Option<vk::PhysicalDeviceVulkanMemoryModelFeaturesKHR<'static>>,
 
@@ -230,6 +238,14 @@ impl PhysicalDeviceFeatures {
         }
         if let Some(ref mut feature) = self.cooperative_matrix {
             info = info.push_next(feature);
+        }
+        // By hand rather than with `push_next`: `push_next` is generic over ash's `ExtendsDeviceCreateInfo`,
+        // and ash cannot implement it for a structure whose `StructureType` variant it does not have. `self`
+        // outlives the `vkCreateDevice` call this feeds, which is what makes the pointer safe.
+        if let Some(ref mut feature) = self.cooperative_vector {
+            feature.s_type = cooperative_vector::S_TYPE_FEATURES_NV;
+            feature.p_next = info.p_next;
+            info.p_next = core::ptr::from_mut(feature) as *const core::ffi::c_void;
         }
         if let Some(ref mut feature) = self.vulkan_memory_model {
             info = info.push_next(feature);
@@ -618,6 +634,15 @@ impl PhysicalDeviceFeatures {
                     vk::PhysicalDeviceCooperativeMatrixFeaturesKHR::default()
                         .cooperative_matrix(needed),
                 )
+            } else {
+                None
+            },
+            cooperative_vector: if enabled_extensions
+                .contains(&cooperative_vector::NV_COOPERATIVE_VECTOR_NAME)
+            {
+                let needed =
+                    requested_features.contains(wgt::Features::EXPERIMENTAL_COOPERATIVE_VECTOR);
+                Some(cooperative_vector::CooperativeVectorFeaturesNV::new(needed))
             } else {
                 None
             },
@@ -1098,6 +1123,15 @@ impl PhysicalDeviceFeatures {
                         && m.vulkan_memory_model_device_scope == vk::TRUE
                 }),
         );
+        // Cooperative vector has no properties structure this crate can ask through ash, so the capability is
+        // the extension being advertised at all. How wide a vector a shader may use is
+        // `VkPhysicalDeviceCooperativeVectorPropertiesNV::maxCooperativeVectorComponents`, and reading it is
+        // the next step rather than this one - enabling the extension is what a shader needs before that
+        // question is answerable.
+        features.set(
+            F::EXPERIMENTAL_COOPERATIVE_VECTOR,
+            caps.supports_extension(cooperative_vector::NV_COOPERATIVE_VECTOR_NAME),
+        );
 
         features.set(
             F::SHADER_DRAW_INDEX,
@@ -1445,6 +1479,13 @@ impl PhysicalDeviceProperties {
         // Require `VK_KHR_cooperative_matrix` if the associated feature was requested
         if requested_features.contains(wgt::Features::EXPERIMENTAL_COOPERATIVE_MATRIX) {
             extensions.push(khr::cooperative_matrix::NAME);
+        }
+
+        // And `VK_NV_cooperative_vector` for its own feature. The extension was ratified for Vulkan 1.3-era
+        // drivers and is what NTC's on-sample decoding needs; without it a cooperative-vector shader cannot be
+        // compiled, let alone run.
+        if requested_features.contains(wgt::Features::EXPERIMENTAL_COOPERATIVE_VECTOR) {
+            extensions.push(cooperative_vector::NV_COOPERATIVE_VECTOR_NAME);
         }
 
         extensions

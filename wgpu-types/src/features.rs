@@ -1424,6 +1424,20 @@ bitflags_array! {
         #[name("wgpu-cooperative-matrix")]
         const EXPERIMENTAL_COOPERATIVE_MATRIX = 1 << 57;
 
+        /// Enables cooperative *vector* operations: a shader that multiplies a vector by a matrix with the
+        /// inference hardware, which is what NTC's on-sample texture decoding is built on.
+        ///
+        /// Distinct from [`Features::EXPERIMENTAL_COOPERATIVE_MATRIX`], which is the older and narrower
+        /// extension: matrix multiply-accumulate with fixed shapes, rather than a vector against a matrix of
+        /// the shape the shader asks for.
+        ///
+        /// Supported platforms:
+        /// - Vulkan (with [VK_NV_cooperative_vector](https://registry.khronos.org/vulkan/specs/latest/man/html/VK_NV_cooperative_vector.html))
+        ///
+        /// This is a native only feature.
+        #[name("wgpu-cooperative-vector")]
+        const EXPERIMENTAL_COOPERATIVE_VECTOR = 1 << 25;
+
         /// Enables shader per-vertex attributes.
         ///
         /// Supported platforms:
@@ -1860,6 +1874,7 @@ impl Features {
                 | FeaturesWGPU::EXPERIMENTAL_RAY_QUERY.bits()
                 | FeaturesWGPU::EXPERIMENTAL_RAY_HIT_VERTEX_RETURN.bits()
                 | FeaturesWGPU::EXPERIMENTAL_COOPERATIVE_MATRIX.bits()
+                | FeaturesWGPU::EXPERIMENTAL_COOPERATIVE_VECTOR.bits()
                 | FeaturesWGPU::EXPERIMENTAL_RAY_TRACING_PIPELINES.bits(),
             FeaturesWebGPU::empty().bits(),
         ]))

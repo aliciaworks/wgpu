@@ -25,6 +25,7 @@ Otherwise, we manage a pool of `VkFence` objects behind each `hal::Fence`.
 !*/
 
 mod adapter;
+mod cooperative_vector;
 mod command;
 pub mod conv;
 mod descriptor;
