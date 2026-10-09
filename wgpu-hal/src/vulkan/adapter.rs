@@ -356,6 +356,16 @@ impl PhysicalDeviceFeatures {
                 )
                 //.shader_image_gather_extended(
                 //.shader_storage_image_extended_formats(
+                // `VK_NV_cooperative_vector` inference reads and writes *unformatted* storage images: the
+                // format lives in the shader rather than in the binding, which is what the SPIR-V says with
+                // `format = Unknown`, and what wgpu issue 6797 is about. This is the hal half of it - the
+                // device can do it when the driver can, which anything able to run the inference can.
+                .shader_storage_image_write_without_format(
+                    phd_features.core.shader_storage_image_write_without_format != 0,
+                )
+                .shader_storage_image_read_without_format(
+                    phd_features.core.shader_storage_image_read_without_format != 0,
+                )
                 .shader_uniform_buffer_array_dynamic_indexing(
                     requested_features.contains(wgt::Features::BUFFER_BINDING_ARRAY),
                 )
