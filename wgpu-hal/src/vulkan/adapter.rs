@@ -1424,6 +1424,15 @@ impl PhysicalDeviceProperties {
             extensions.push(khr::buffer_device_address::NAME);
         }
 
+        // Require `VK_KHR_buffer_device_address` for the cooperative-vector weight conversion: NTC converts
+        // the raw weights into the layout the inference hardware wants by handing the driver buffer
+        // addresses, so the device has to be able to name them. Enabled with the cooperative-vector feature
+        // rather than on its own, because that is the only thing here that needs it - and asking for the
+        // feature without the extension would leave the conversion without an address to give.
+        if requested_features.contains(wgt::Features::EXPERIMENTAL_COOPERATIVE_VECTOR) {
+            extensions.push(khr::buffer_device_address::NAME);
+        }
+
         // Require `VK_KHR_ray_query` if `EXPERIMENTAL_RAY_QUERY` was requested
         if requested_features.contains(wgt::Features::EXPERIMENTAL_RAY_QUERY) {
             extensions.push(khr::ray_query::NAME);
