@@ -720,6 +720,13 @@ bitflags::bitflags! {
 #[cfg_attr(feature = "arbitrary", derive(Arbitrary))]
 pub enum StorageFormat {
     // 8-bit formats
+    /// No format: the shader names it where it reads or writes, which Vulkan allows for a storage image
+    /// under `StorageImageReadWithoutFormat` and `StorageImageWriteWithoutFormat`.
+    ///
+    /// This is what an unformatted storage image is called, and it is what NTC's inference shader uses for its
+    /// latent: a buffer of bytes that one shader pass reads and another writes, with the interpretation living
+    /// in the shader rather than in the binding. naga refused these outright before this.
+    Unknown,
     R8Unorm,
     R8Snorm,
     R8Uint,

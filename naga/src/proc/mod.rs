@@ -35,6 +35,9 @@ impl From<super::StorageFormat> for super::Scalar {
     fn from(format: super::StorageFormat) -> Self {
         use super::{ScalarKind as Sk, StorageFormat as Sf};
         let kind = match format {
+            // An unformatted storage image is accessed as raw 32-bit words, so that is the honest scalar:
+            // anything else would be inventing an interpretation the shader is the one to supply.
+            Sf::Unknown => Sk::Uint,
             Sf::R8Unorm => Sk::Float,
             Sf::R8Snorm => Sk::Float,
             Sf::R8Uint => Sk::Uint,

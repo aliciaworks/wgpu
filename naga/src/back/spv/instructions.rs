@@ -1356,6 +1356,9 @@ impl From<crate::StorageFormat> for spirv::ImageFormat {
     fn from(format: crate::StorageFormat) -> Self {
         use crate::StorageFormat as Sf;
         match format {
+            // What the shader itself names where it reads or writes: Vulkan's
+            // `StorageImageReadWithoutFormat` / `WriteWithoutFormat` path.
+            Sf::Unknown => Self::Unknown,
             Sf::R8Unorm => Self::R8,
             Sf::R8Snorm => Self::R8Snorm,
             Sf::R8Uint => Self::R8ui,

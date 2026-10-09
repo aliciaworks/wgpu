@@ -2719,11 +2719,14 @@ impl<I: Iterator<Item = u32>> Frontend<I> {
 
                 crate::ImageClass::Depth { multi: is_msaa }
             }
-            // If we have an unknown format and storage texture, this is
-            // StorageRead/WriteWithoutFormat. We don't currently support
-            // this.
+            // An unformatted storage texture: the shader names the format where it reads or writes, which
+            // Vulkan allows under `StorageImageReadWithoutFormat` and `StorageImageWriteWithoutFormat`. The
+            // type says so by carrying no format.
             else if is_sampled == 2 && format == 0 {
-                return Err(Error::InvalidStorageImageWithoutFormat);
+                crate::ImageClass::Storage {
+                    format: crate::StorageFormat::Unknown,
+                    access: crate::StorageAccess::default(),
+                }
             }
             // If we have explicit class information (is_sampled = 2 = Storage), use it.
             //
